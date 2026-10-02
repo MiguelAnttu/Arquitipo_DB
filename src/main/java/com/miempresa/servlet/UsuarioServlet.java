@@ -1,6 +1,5 @@
 package com.miempresa.servlet;
 
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -12,75 +11,53 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.miempresa.conexion.Conexion;
 
 @WebServlet("/usuarios")
 public class UsuarioServlet extends HttpServlet {
 
-	@Override
-    protected void doGet(
-            HttpServletRequest request,
-            HttpServletResponse response)
+    private static final Logger LOG = Logger.getLogger(UsuarioServlet.class.getName());
+    private static final String SQL = "SELECT * FROM usuarios LIMIT 1000";
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String sql = "SELECT * FROM usuarios";
-
-        try (
-            Connection conexion = Conexion.conectar();
-            PreparedStatement sentencia = conexion.prepareStatement(sql);
-            ResultSet resultado = sentencia.executeQuery()
-        ) {
+        try (Connection conexion = Conexion.conectar();
+             PreparedStatement sentencia = conexion.prepareStatement(SQL);
+             ResultSet resultado = sentencia.executeQuery()) {
 
             ResultSetMetaData metaDatos = resultado.getMetaData();
-
             int numeroColumnas = metaDatos.getColumnCount();
 
-            StringBuilder tabla = new StringBuilder();
-
-            tabla.append("<table border='1'>");
-
-            tabla.append("<tr>");
-
+            List<String> columnas = new ArrayList<>();
             for (int i = 1; i <= numeroColumnas; i++) {
-                tabla.append("<th>");
-                tabla.append(metaDatos.getColumnName(i));
-                tabla.append("</th>");
+                columnas.add(metaDatos.getColumnLabel(i));
             }
 
-            tabla.append("</tr>");
-
+            List<List<Object>> filas = new ArrayList<>();
             while (resultado.next()) {
-
-                tabla.append("<tr>");
-
+                List<Object> fila = new ArrayList<>();
                 for (int i = 1; i <= numeroColumnas; i++) {
-
-                    tabla.append("<td>");
-                    tabla.append(resultado.getObject(i));
-                    tabla.append("</td>");
+                    fila.add(resultado.getObject(i));
                 }
-
-                tabla.append("</tr>");
+                filas.add(fila);
             }
 
-            tabla.append("</table>");
+            request.setAttribute("columnas", columnas);
+            request.setAttribute("filas", filas);
 
-            request.setAttribute("tabla", tabla.toString());
-
-            request.getRequestDispatcher("/index.jsp")
-                   .forward(request, response);
-
-        } catch (Exception e) {
-
-            request.setAttribute(
-                    "error",
-                    "Error al consultar la base de datos: "
-                    + e.getMessage()
-            );
-
-            request.getRequestDispatcher("/index.jsp")
-                   .forward(request, response);
+        } catch (SQLException e) {
+            LOG.log(Level.SEVERE, "Error al consultar la base de datos", e);
+            request.setAttribute("error", "No se pudo consultar la base de datos.");
         }
+
+        request.getRequestDispatcher("/index.jsp").forward(request, response);
     }
 }

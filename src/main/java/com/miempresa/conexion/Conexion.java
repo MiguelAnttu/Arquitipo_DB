@@ -6,18 +6,25 @@ import java.sql.SQLException;
 
 public class Conexion {
 
-    private static final String URL =
-            "jdbc:mysql://localhost:3306/mi_base_datos";
+    // Configurables por variables de entorno; los valores por defecto son solo para desarrollo local.
+    private static final String URL = env("DB_URL", "jdbc:mysql://localhost:3306/mi_base_datos");
+    private static final String USUARIO = env("DB_USER", "root");
+    private static final String PASSWORD = env("DB_PASSWORD", "root");
 
-    private static final String USUARIO = "root";
-
-    private static final String PASSWORD = "root";
+    private Conexion() {
+    }
 
     public static Connection conectar() throws SQLException {
-        return DriverManager.getConnection(
-                URL,
-                USUARIO,
-                PASSWORD
-        );
-	}
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("No se encontró el driver de MySQL en el classpath", e);
+        }
+        return DriverManager.getConnection(URL, USUARIO, PASSWORD);
+    }
+
+    private static String env(String nombre, String porDefecto) {
+        String valor = System.getenv(nombre);
+        return (valor == null || valor.isBlank()) ? porDefecto : valor;
+    }
 }
